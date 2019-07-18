@@ -1,0 +1,57 @@
+;
+; This is a simple program which is designed to print "inline"
+; strings.
+;
+; Of course such a thing is a little crazy, as it really messes
+; with disassemblers, but it's still a cute hack.
+;
+org 0
+
+   call print
+   db "This is a test!\n$"
+
+   call print
+   db "As you can see we're printing INLINE strings!\n$"
+
+   halt
+
+
+;
+; This routine is designed to be CALLed, when it is invoked
+; the address of the next instruction will be placed on the
+; stack, which means we can find the address of the string to
+; print from there.
+;
+; We print each character until we find a '$' character, then
+; jmp back to the location after that.
+;
+print:
+   ;
+   ; The return address, i.e. the instruction after our call, will be
+   ; on the stack.  In our case we know that points to the string to be
+   ; printed.
+   ;
+   pop hl
+
+print_loop:
+
+   ;
+   ; Load the character in the hl-register into A.
+   ;
+   ld a,(hl)
+
+   ;
+   ; Bump to the next.
+   ;
+   inc hl
+
+   ;
+   ; End of the string?
+   ;
+   cp '$'
+   jp nz, print_cont
+   push hl
+   ret
+print_cont:
+   out (1),a
+   jp print_loop
