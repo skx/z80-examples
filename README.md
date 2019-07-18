@@ -31,14 +31,7 @@ Outputing a string, held inline.  Simple test of loops:
 
 This example is similar to the previous one, but instead outputs the contents of the HL register-pair, as a four-digit hexadecimal number.
 
-i.e. If you run this:
-
-    ld hl, 0x123F
-
-You should see the output "0x123F".  Proving that:
-
-* A number has been converted to an ASCII-string.
-* That string has been sent to the output
+i.e. If you assume this `ld hl, 0x123F`, then you should see the output "0x123F" generated, which proves a number a has been converted to an ASCII-string, and output correctly.
 
 * [number-output.z80](number-output.z80)
 
