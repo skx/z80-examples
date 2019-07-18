@@ -31,9 +31,8 @@ print:
    ; on the stack.  In our case we know that points to the string to be
    ; printed.
    ;
-   pop hl
-
 print_loop:
+   pop hl
 
    ;
    ; Load the character in the hl-register into A.
@@ -46,12 +45,26 @@ print_loop:
    inc hl
 
    ;
-   ; End of the string?
+   ; Since we've incremented the HL register we're either
+   ; going to get the next character - or the address to
+   ; which we should return.  Push it onto the stack either way.
+   ;
+   push hl
+
+   ;
+   ; Is the character '$'?  If so we return - because we've
+   ; just stored the next address on the stack we'll go to
+   ; the correct location.
    ;
    cp '$'
-   jp nz, print_cont
-   push hl
-   ret
-print_cont:
+
+   ;
+   ; Return if we're done.
+   ;
+   ret z
+
+   ;
+   ; Otherwise output the single character, and start again.
+   ;
    out (1),a
    jp print_loop
