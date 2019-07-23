@@ -27,6 +27,7 @@ Outputing a string, held inline.  Simple test of loops:
 
 * [string-output.z80](string-output.z80)
 
+
 ## 03. Number Output
 
 This example is similar to the previous one, but instead outputs the contents of the HL register-pair, as a four-digit hexadecimal number.
@@ -35,6 +36,28 @@ i.e. If you assume this `ld hl, 0x123F`, then you should see the output "0x123F"
 
 * [number-output.z80](number-output.z80)
 
+
+## 04. Simple Monitor
+
+This is the most complex/complete program in the repository, and it is a "monitor program" which allows you to interactively use your Z80 processor.  There are a couple of builtin commands for dumping ram, inputing data, and calling functions.
+
+Each command is invoked via a letter.  For example to (D)ump the 16 bytes of RAM at 0x1000 run:
+
+   > D1000
+   0x1000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+To (I)nput a simple routine:
+
+   > I1000 3E 68 D3 01 3E 65 D3 01 3E 6C D3 01 3E 6C D3 01
+   > I 3E 6F D3 01 3E 21 D3 01 3E 0A D3 01 C9
+
+(Here you see that the input-address is optional in the second line, bytes are just appended to the value previously set.)
+
+Finally you may (c)all the routine you've just loaded:
+
+   > C1000
+   hello!
+   >
 
 Steve
 --

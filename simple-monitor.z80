@@ -7,10 +7,10 @@
 ;;
 ;;   call xxxx  -> Call the routine at XXXX
 ;;
-;;   dump       -> Dump 16 bytes of RAM - each time you call it you get 16 more bytes
+;;   dump       -> Dump 16 bytes of RAM - each time you call it you get
+;;                 16 more bytes
 ;;
-;;   TODO:
-;;     input      -> Enter bytes
+;;   input      -> Enter bytes
 ;;
 ;;
 
@@ -24,12 +24,10 @@ jp monitor
 
 
 ;;
-;; HELPER!
+;; Test-code.  This is a simple subroutine which is assembled at a fixed
+;; address so that we can CALL it, via the C-function, as a test.
 ;;
-;; This is code at 0x0003
-;;
-;; It can be tested via "C0003"
-;;
+;; This code will be located at address 0x0003, invoke it with C0003
 ;;
     ld hl, i_called
     call print_string
@@ -42,12 +40,10 @@ jp monitor
 ;;
 ;; Monitor is our entry-point
 ;;
-;; Read a line of input - terminating on newline - and process it.
+;; Read a line of input into the fixed-buffer located at `input_buffer`.
 ;;
-;; We look for (C)all and (D)ump instructions.
-;;
-;; TODO:
-;;  (E)nter
+;; Keep appending to the buffer until we see a newline, and once we reach
+;; that invoke `process` to handle it.
 ;;
 monitor:
         ; show a prompt.
@@ -85,14 +81,15 @@ input_loop:
 
 
 ;;
-;; When this routine is called HL points to a string with a newline terminator.
+;; process_input_line is called when the monitor has received a complete
+;; newline-terminated line of text.
 ;;
-;; We need to work out which routine to call - we do this by looking for a single-character:
+;; We process the contents by looking for commands we understand, if we see
+;; input we don't recognize we show a message and return, otherwise we invoke
+;; the appropriate handler.
 ;;
 ;;  C => CALL
-;;
 ;;  D => DUMP
-;;
 ;;  I => INPUT
 ;;
 process_input_line:
@@ -112,7 +109,13 @@ process_input_line:
         cp 'D'
         jp z, dump_handler
 
-        ; Nothing known.
+        ; I == INPUT
+        cp 'i'
+        jp z, input_handler
+        cp 'I'
+        jp z, input_handler
+
+        ; Unknown command.
         ld hl, unknown_command
         call print_string
         jp monitor
@@ -144,18 +147,24 @@ call_handler:
 ;;
 ;; Dump 16 bytes from the current dump_address
 ;;
-;; We're called with either "D" to keep going where we left off or "D1234" if we should start at the given offset.
+;; We're called with either "D" to keep going where we left off or
+;; "D1234" if we should start at the given offset.
 ;;
 dump_handler:
+
+        ; Input buffer will start with [Dd]
         ld hl, input_buffer
         inc hl
+
+        ; Look at the next input-byte.  If empty then no address.
         ld a, (hl)
         cp '\n'
         jp z, dump_handler_no_number
         cp 0
         jp z, dump_handler_no_number
 
-        ; address follows HL
+        ; OK we expect an (ASCII) address following HL.
+        ; Read it into BC.
         call read_16_bit
         ld (dump_address), bc
 
@@ -184,12 +193,73 @@ dump_byte:
 
 
 
+;;
+;; Input handler allows code to be assembled at a given address
+;;
+;; Usage is:
+;;
+;;  I01234 01 02 03 04 0f
+;;
+;; i.e. "I<address> byte1 byte2 .. byteN"
+;;
+;; If there is no address keep going from the last time, which means this
+;; works as you expect:
+;;
+;;   I1000 01 03
+;;   I 03 04 0F
+;;
+input_handler:
+        ; Input buffer will start with [iI]
+        ld hl, input_buffer
+        inc hl
+
+        ; Look at the next input-byte.  If it is a space then no address was
+        ; given, so we keep appending bytes to the address set previously.
+        ld a, (hl)
+        cp ' '
+        jp z, input_handler_no_address
+
+        ; OK we expect an (ASCII) address following HL - Read it into BC.
+        call read_16_bit
+        ld (input_address), bc
+
+input_handler_no_address:
+
+        ;; HL contains the a string.  Get the next byte
+        ld a,(hl)
+        inc hl
+
+        ; space? skip
+        cp ' '
+        jp z, input_handler_no_address
+
+        ; newline/null? we're done
+        cp '\n'
+        jp z, monitor
+        cp 0
+        jp z, monitor
+
+        ; OK then we have a two-digit number
+        dec hl
+        call Read8bit
+
+        ; store the byte in RAM
+        ld bc, (input_address)
+        ld (bc), a
+
+        ; bump to the next address
+        inc bc
+        ld (input_address), bc
+
+        ; continue
+        jp input_handler_no_address
+
+
 
 
 
 ;;
-;; Convert a four-digit ASCII number, pointed to by HL to a number.
-;;
+;; Convert a 4-digit ASCII number, pointed to by HL to a number.
 ;; Return that number in BC.
 ;;
 read_16_bit:
@@ -213,6 +283,14 @@ read_16_bit:
 ;;
 Read8bit:
 	ld		a, (hl)		; Copy first char to A
+
+        ; is it lower-case?  If so upper-case it.
+        cp 'a'
+        jp c, Read8BitUC
+        cp 'z'
+        jp nc, Read8BitUC
+        sub a, 32
+Read8BitUC:
         call		Hex12		; Convert first char
         add		a, a		; Multiply by 16...
         add		a, a		; ...
@@ -298,6 +376,12 @@ unknown_command:
 ;; Keep track of where we DUMP RAM from.
 ;;
 dump_address:
+   db 0,0
+
+;;
+;; Keep track of where we input bytes to
+;;
+input_address:
    db 0,0
 
 
