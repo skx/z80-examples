@@ -43,21 +43,28 @@ This is the most complex/complete program in the repository, and it is a "monito
 
 Each command is invoked via a letter.  For example to (D)ump the 16 bytes of RAM at 0x1000 run:
 
-   > D1000
-   0x1000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+> D1000
+0x1000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+> D
+0x1010 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
 
 To (I)nput a simple routine:
 
-   > I1000 3E 68 D3 01 3E 65 D3 01 3E 6C D3 01 3E 6C D3 01
-   > I 3E 6F D3 01 3E 21 D3 01 3E 0A D3 01 C9
+```
+> I1000 3E 68 D3 01 3E 65 D3 01 3E 6C D3 01 3E 6C D3 01
+> I 3E 6F D3 01 3E 21 D3 01 3E 0A D3 01 C9
+```
 
 (Here you see that the input-address is optional in the second line, bytes are just appended to the value previously set.)
 
 Finally you may (c)all the routine you've just loaded:
 
-   > C1000
-   hello!
-   >
+```
+> C1000
+hello!
+```
 
 Steve
 --
