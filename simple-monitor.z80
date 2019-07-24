@@ -11,7 +11,7 @@
 ;;
 ;;   [i]nput      -> Enter bytes
 ;;
-;;   [q]uit       -> Halt the CPU
+;; Other input will generate an "ERR" message, and be ignored.
 ;;
 
 org 0
@@ -23,34 +23,27 @@ org 0
 ;; is seen, then invoke `process` to handle the input.
 ;;
 monitor:
-        ; show the prompt.
-        ld hl, prompt_string
-        call print_string
+        ;; show the prompt.
+        ld a, '>'
+        out (1),a
 
-        ; Ensure that the input-buffer is empty to avoid previous
-        ; input bleeding into future input.
+
         ld hl, input_buffer
-        push hl
-        ld a, '\n'
-        ld b, 80
-   fill_input_buffer:
-        ld (hl),a
-        inc hl
-        djnz fill_input_buffer
-        pop hl
+monitor_input_loop:
+        ;; overwrite an previous input
+        ld (hl), '\n'
 
-        ; Read characters and append them to the `input_buffer` region
-        ; until we receive a newline or a failure to read more.
-        ;
-        ; If the buffer is complete then jump to the `process_input_line`
-        ; code to run the appropriate command.
-input_loop:
+        ;; read and store the new character
         in a,(1)
+        ld (hl),a
+
+        ;; was it a newline?  If so process.
         cp '\n'
         jr z, process_input_line
-        ld (hl),a
+
+        ;; Otherwise loop round for more input.
         inc hl
-        jr input_loop
+        jr monitor_input_loop
 
 
 
@@ -71,33 +64,37 @@ process_input_line:
         ld hl, input_buffer
         ld a, (hl)
 
-        ; C == CALL
+        ;; C == CALL
         cp 'c'
         jr z, call_handler
         cp 'C'
         jr z, call_handler
 
-        ; D == DUMP
+        ;; D == DUMP
         cp 'd'
         jr z, dump_handler
         cp 'D'
         jr z, dump_handler
 
-        ; I == INPUT
+        ;; I == INPUT
         cp 'i'
         jr z, input_handler
         cp 'I'
         jr z, input_handler
 
-        ; Q == QUIT
-        cp 'q'
-        jr z, quit_handler
-        cp 'Q'
-        jr z, quit_handler
-
-        ; Unknown command: show a message and restart our monitor
-        ld hl, unknown_command_string
-        call print_string
+        ;;
+        ;; Unknown command: show a message and restart our monitor
+        ;;
+        ;; We just show "ERR" which is simple, and saves bytes compared to
+        ;; outputting a longer message and using a print-string routine.
+        ;;
+        ld a, 'E'
+        out (1),a
+        ld a, 'R'
+        out (1), a
+        out (1), a
+        ld a, '\n'
+        out (1),a
         jr monitor
 
 
@@ -112,19 +109,20 @@ call_handler:
         ld hl, input_buffer
         inc hl
 
-        ; Read the address to call into BC
-        call read_16_bit
+        ;; Read the address to call into BC
+        call read_16_bit_ascii_number
 
-        ; We'll be making a call, so we need to have the return
-        ; address on the stack - so that when the routine ends
-        ; execution goes somewhere sane.
-        ;
-        ; We'll want to re-load the monitor, so we'll store the
-        ; entry point on the stack
-        ld hl, monitor
+        ;; We'll be making a call, so we need to have the return
+        ;; address on the stack - so that when the routine ends
+        ;; execution goes somewhere sane.
+        ;;
+        ;; We'll want to re-load the monitor, so we'll store the
+        ;; entry point on the stack
+        ;;
+        ld hl,monitor
         push hl
 
-        ; Now we call, indirectly, the address in the BC register.
+        ;; Now we call, indirectly, the address in the BC register.
         push bc
         ret
 
@@ -138,44 +136,43 @@ call_handler:
 ;;
 dump_handler:
 
-        ; Our input-buffer will start with [dD], so we start looking at the
-        ; next character.
+        ;; Our input-buffer will start with [dD], so we start looking at the
+        ;; next character.
         ld hl, input_buffer+1
 
-        ; Look at the next input-byte.  If empty then no address.
+        ;; Look at the next input-byte.  If empty then no address.
         ld a, (hl)
         cp '\n'
         jr z, dump_handler_no_number
 
-        ; OK we expect an (ASCII) address following HL.
-        ; Read it into BC.
-        call read_16_bit
+        ;; OK we expect an (ASCII) address following HL - read it into BC.
+        call read_16_bit_ascii_number
         ld (dump_address), bc
 
 dump_handler_no_number:
-        ; The address we start from
+        ;; The address we start from
         ld hl, (dump_address)
-        ; show the address
-        call DispHLhex
+        ;; show the address
+        call output_16_bit_number
 
-        ; Loop to print 16-bytes
+        ;; Loop to print the next 16 bytes at that address.
         ld b, 16
 dump_byte:
-        ; show a space
+        ;; show a space
         ld a, ' '
         out (1), a
 
-        ; show the memory-contents.
+        ;; show the memory-contents.
         ld c, (hl)
-        call OutHex8
+        call output_8_bit_number
         inc hl
         djnz dump_byte
 
-        ; all done
+        ;; all done
         ld a, '\n'
         out (1),a
 
-        ; store our updated/final address.
+        ;; store our updated/final address.
         ld (dump_address), hl
         jp monitor
 
@@ -197,18 +194,18 @@ dump_byte:
 ;;   I 03 04 0F
 ;;
 input_handler:
-        ; Our input-buffer will start with [iI], so we start looking at the
-        ; next character.
+        ;; Our input-buffer will start with [iI], so we start looking at the
+        ;; next character.
         ld hl, input_buffer+1
 
-        ; Look at the next input-byte.  If it is a space then no address was
-        ; given, so we keep appending bytes to the address set previously.
+        ;; Look at the next input-byte.  If it is a space then no address was
+        ;; given, so we keep appending bytes to the address set previously.
         ld a, (hl)
         cp ' '
         jr z, input_handler_no_address
 
-        ; OK we expect an (ASCII) address following HL - Read it into BC.
-        call read_16_bit
+        ;; OK we expect an (ASCII) address following HL - Read it into BC.
+        call read_16_bit_ascii_number
         ld (input_address), bc
 
 input_handler_no_address:
@@ -217,35 +214,29 @@ input_handler_no_address:
         ld a,(hl)
         inc hl
 
-        ; space? skip
+        ;; space? skip
         cp ' '
         jr z, input_handler_no_address
 
-        ; newline? If so we're done
+        ;; newline? If so we're done
         cp '\n'
         jp z, monitor
 
-        ; OK then we have a two-digit number
+        ;; OK then we have a two-digit number
         dec hl
-        call Read8bit
+        call read_8_bit_ascii_number
 
-        ; store the byte in RAM
+        ;; store the byte in RAM
         ld bc, (input_address)
         ld (bc), a
 
-        ; bump to the next address
+        ;; bump to the next address
         inc bc
         ld (input_address), bc
 
-        ; continue
+        ;; continue
         jr input_handler_no_address
 
-
-;;
-;; Invoked to quit; this just shuts down the processor.
-;;
-quit_handler:
-        halt
 
 
 
@@ -253,13 +244,13 @@ quit_handler:
 ;; Convert a 4-digit ASCII number, pointed to by HL to a number.
 ;; Return that number in BC.
 ;;
-read_16_bit:
-	; HL is a pointer to a four-char string
-	; This is read as a 16 bit hex number
-	; The number is stored in BC
-	call		Read8bit
+read_16_bit_ascii_number:
+	;; HL is a pointer to a four-char string
+	;; This is read as a 16 bit hex number
+	;; The number is stored in BC
+	call		read_8_bit_ascii_number
 	ld		b, a
-	call		Read8bit
+	call		read_8_bit_ascii_number
 	ld		c, a
 	ret
 
@@ -268,54 +259,55 @@ read_16_bit:
 
 
 ;;
-;; HL is a pointer to a two-char string
-;; This is read as an 8 bit hex number
-;; The number is stored in A
+;; Read the two-digit HEX number from HL, and convert to an integer
+;; stored in the A-register.
 ;;
-Read8bit:
-	ld		a, (hl)		; Copy first char to A
-
-        ; is it lower-case?  If so upper-case it.
+;; HL will be incremented twice.
+;;
+read_8_bit_ascii_number:
+	ld		a, (hl)
+        ;; is it lower-case?  If so upper-case it.
         cp 'a'
-        jr c, Read8BitUC
+        jr c, read_8_bit_ascii_number_uc
         cp 'z'
-        jr nc, Read8BitUC
+        jr nc, read_8_bit_ascii_number_uc
         sub a, 32
-Read8BitUC:
-        call		Hex12		; Convert first char
-        add		a, a		; Multiply by 16...
-        add		a, a		; ...
-        add		a, a		; ...
-        add		a, a		; ...done!
-        ld		d, a		; Store top 4 bits in D
-	inc		hl		; Advance to next char
+read_8_bit_ascii_number_uc:
+        call		read_8_bit_ascii_number_hex
+        add		a, a
+        add		a, a
+        add		a, a
+        add		a, a
+        ld		d, a
+	inc		hl
         ld		a, (hl)
-        call		Hex12		; Convert second char
-        or		d		; Add back top bits
-	inc		hl		; Advance for next guy
+        call		read_8_bit_ascii_number_hex
+        or		d
+	inc		hl
         ret
-Hex12:	sub		a, '0'
+read_8_bit_ascii_number_hex:
+        sub		a, '0'
         cp		10
         ret		c
         sub		a,'A'-'0'-10
         ret
 
 
-;
-; Display the 16-bit number stored in HL
-;
-DispHLhex:
+;;
+;; Display the 16-bit number stored in HL in hex.
+;;
+output_16_bit_number:
 
    ld  c,h
-   call  OutHex8
+   call  output_8_bit_number
    ld  c,l
-   call OutHex8
+   call output_8_bit_number
    ret
 
-;
-; Display the 8-bit number stored in C
-;
-OutHex8:
+;;
+;; Display the 8-bit number stored in C in hex.
+;;
+output_8_bit_number:
    ld  a,c
    rra
    rra
@@ -329,21 +321,8 @@ Conv:
    daa
    adc  a,$40
    daa
-   ; Show the value.
    out (1),a
    ret
-
-
-;;
-;; Print String
-;;
-print_string:
-   ld a,(hl)
-   inc hl
-   cp '$'
-   ret z
-   out (1),a
-   jr print_string
 
 
 
@@ -352,34 +331,15 @@ print_string:
 ;;;;;;;;
 
 ;;
-;; Unknown command message
+;; Here we store some values.
 ;;
-unknown_command_string:
-        db "Unknown command.\n$"
 
-;;
-;; The string we print as the users' prompt
-;;
-prompt_string:
-        db ">$"
-
-;;
-;; We track of the address from which we dump RAM here.
-;;
+;; DUMP: We track of the address from which we're dumping.
 dump_address:
-   db 0,0
-
-;;
-;; Keep track of where we input bytes to.
-;;
+        db 0,0
+;; INPUT: Keep track of the address to which we next write.
 input_address:
-   db 0,0
+        db 0,0
 
-
-;;
-;; This is where we read a line of input
-;;
-;; There is no upper-limit here, though in practice we only reset the first 80
-;; bytes with newlines.
-;;
+;; Command-line input buffer.
 input_buffer:
