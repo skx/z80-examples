@@ -106,14 +106,16 @@ process_input_line:
 ;; For example "C0003" will call the routine at 0x0003
 ;;
 call_handler:
-        ld hl, input_buffer
-        inc hl
+
+        ;; Our input-buffer will start with [cC], so we start looking at the
+        ;; next character.
+        ld hl, input_buffer+1
 
         ;; Read the address to call into BC
         call read_16_bit_ascii_number
 
         ;; We'll be making a call, so we need to have the return
-        ;; address on the stack - so that when the routine ends
+        ;; address on the stack so that when the call'd routine ends
         ;; execution goes somewhere sane.
         ;;
         ;; We'll want to re-load the monitor, so we'll store the
@@ -122,7 +124,7 @@ call_handler:
         ld hl,monitor
         push hl
 
-        ;; Now we call, indirectly, the address in the BC register.
+        ;; Now we jump, indirectly, to the address in the BC register.
         push bc
         ret
 
