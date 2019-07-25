@@ -176,7 +176,8 @@ dump_byte:
 
         ;; store our updated/final address.
         ld (dump_address), hl
-        jp monitor
+jmp_monitor:
+        jr monitor
 
 
 
@@ -222,7 +223,7 @@ input_handler_no_address:
 
         ;; newline? If so we're done
         cp '\n'
-        jp z, monitor
+        jr z, jmp_monitor
 
         ;; OK then we have a two-digit number
         dec hl
