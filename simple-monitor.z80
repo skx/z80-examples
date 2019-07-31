@@ -16,6 +16,11 @@
 
 org 0
 
+    ;;
+    ;; Ensure we have a stack-pointer setup, with some room.
+    ;;
+    ld sp, stack_start
+
 ;;
 ;; Entry-point to the monitor.
 ;;
@@ -343,6 +348,20 @@ dump_address:
 ;; INPUT: Keep track of the address to which we next write.
 input_address:
         db 0,0
+
+;; We don't nest calls too deeply ..
+stack_end:
+        db 0, 0
+        db 0, 0
+        db 0, 0
+        db 0, 0
+        db 0, 0
+        db 0, 0
+        db 0, 0
+        db 0, 0
+        db 0, 0
+        db 0, 0
+stack_start:
 
 ;; Command-line input buffer.
 input_buffer:
