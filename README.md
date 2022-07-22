@@ -14,6 +14,15 @@ Similarly I assume reading a single character from a serial-console, or STDIN, i
 This is true of the [Z80 emulator](https://github.com/skx/z80emulater/) I'm using, as well as the [physical machine I intend to build](https://blog.steve.fi/tags/z80/).
 
 
+## 00.  See Also
+
+If you'd rather see something _complete_ then you should check out this repository:
+
+* [The lighthouse of doom](https://github.com/skx/lighthouse-of-doom)
+
+That contains a complete (simple!) text-based adventure-game written in Z80 assembly, which will work on any ZX Spectrum emulator, and can also run on CP/M systems (again under emulation if you don't have any retro-hardware).
+
+
 ## 01.  RAM Increment
 
 The simplest example is the first, which increments a single byte of RAM endlessly.  If you have an emulator that lets you dump RAM after every instruction, or physical hardware upon which you can do the same this should prove your code is working:
