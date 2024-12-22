@@ -88,7 +88,7 @@ process_input_line:
         jr z, input_handler
 
         ;;
-        ;; Unknown command: show a message and restart our monitor
+                ;; Unknown command: show a message and restart our monitor
         ;;
         ;; We just show "ERR" which is simple, and saves bytes compared to
         ;; outputting a longer message and using a print-string routine.
@@ -289,6 +289,15 @@ read_8_bit_ascii_number_uc:
         ld		d, a
 	inc		hl
         ld		a, (hl)
+
+        ;; upper-case the second character too, if necessary.
+        cp 'a'
+        jr c, conty
+        cp 'z'
+        jr nc, conty
+        sub a, 32
+conty:
+
         call		read_8_bit_ascii_number_hex
         or		d
 	inc		hl
